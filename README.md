@@ -1,5 +1,9 @@
 # Cloudconfig
 
+[![Build Status](https://travis-ci.org/klarna/cloudconfig.png?branch=master)](https://travis-ci.org/klarna/cloudconfig)
+
+Cloudconfig is an application that manages configurations for resources in Cloudstack.
+
 ## Installation
 
 Add this line to your application's Gemfile:
