@@ -28,7 +28,7 @@ To use the application:
 
 Create config:
 
-    cloudconfig config API_KEY SECRET_KEY RESOURCE_DIRECTORY
+    cloudconfig config URL API_KEY SECRET_KEY RESOURCE_DIRECTORY
 
 Dryrun can be performed to view potential changes:
 
