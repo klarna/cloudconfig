@@ -5,10 +5,10 @@ require "cloudconfig/resources"
 
 module Cloudconfig
 	class CLI < Thor
-	  desc "config API_KEY SECRET_KEY RESOURCE_DIRECTORY", "Create configuration file ~/.cloudconfig/config, with api_key, secret_key and path to directory containing resource files as /path/to/directory ."
-	  def config(api_key, secret_key, resource_directory)
+	  desc "config URL API_KEY SECRET_KEY RESOURCE_DIRECTORY", "Create configuration file ~/.cloudconfig/config, with url, api_key, secret_key and path to directory containing resource files as /path/to/directory ."
+	  def config(url, api_key, secret_key, resource_directory)
 	    UserConfig.default('config.yaml', {
-	      'url' => 'https://cloud.internal.machines:443/portal/client/apis/ccpapi01',
+	      'url' => url,
 	      'api_key' => api_key,
 	      'secret_key' => secret_key,
 	      'resource_directory' => resource_directory
