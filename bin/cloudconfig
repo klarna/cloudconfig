@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+require "thor"
+require "user_config"
+require "cloudconfig/resources"
+
+module Cloudconfig
+	class CLI < Thor
+	  desc "config API_KEY SECRET_KEY RESOURCE_DIRECTORY", "Create configuration file ~/.cloudconfig/config, with api_key, secret_key and path to directory containing resource files as /path/to/directory ."
+	  def config(api_key, secret_key, resource_directory)
+	    UserConfig.default('config.yaml', {
+	      'url' => 'https://cloud.internal.machines:443/portal/client/apis/ccpapi01',
+	      'api_key' => api_key,
+	      'secret_key' => secret_key,
+	      'resource_directory' => resource_directory
+	    })
+	    uconfig = UserConfig.new('.cloudconfig')
+	    uconfig.create('config.yaml')
+	  end
+	  desc "list RESOURCE", "Lists RESOURCE, currently existing in CloudPlatform."
+	  def list(resource)
+	    r = Resources.new(resource)
+	    r.list_resources
+	  end
+	  desc "comparison", "Compares all resources available for update."
+	  def comparison()
+	    # resource set to serviceofferings, but method will check all resources.
+	    r = Resources.new("serviceofferings")
+	    r.compare_resources
+	  end
+	  desc "update RESOURCE", "Updates RESOURCE from configuration yaml file."
+	  long_desc <<-LONGDESC
+	    `update serviceofferings` will configure service offerings.
+	    \x5`update hosts` will configure hosts.
+	    \x5`update storages` will configure storage pools.
+	    \x5`update diskofferings` will configure disk offerings.
+	  LONGDESC
+	  option :delete, :desc => "delete option for service offerings, resources existing in CloudPlatform but not in configuation yaml file are deleted in CloudPlatform."
+	  option :dryrun, :desc => "dry run option, changes that should be made are listed, but not performed."
+	  def update(resource)
+	    r = Resources.new(resource)
+	    if options[:delete]
+	      r.delete = true
+	    end
+	    if options[:dryrun]
+	      r.dryrun = true
+	    end
+	    r.update
+	  end
+	end
+end
+
+Cloudconfig::CLI.start(ARGV)
