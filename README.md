@@ -1,6 +1,7 @@
 # Cloudconfig
 
 [![Build Status](https://travis-ci.org/klarna/cloudconfig.png?branch=master)](https://travis-ci.org/klarna/cloudconfig)
+[![Gem Version](https://badge.fury.io/rb/cloudconfig.png)](http://badge.fury.io/rb/cloudconfig)
 
 Cloudconfig is an application that manages configurations for resources in Cloudstack.
 
