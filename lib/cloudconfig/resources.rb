@@ -67,6 +67,9 @@ module Cloudconfig
 			elsif @resource == "diskofferings"
 				resource_title = "DiskOfferings"
 				resource_cloud = @client.list_disk_offerings()["diskoffering"]
+			elsif @resource == "systemofferings"
+				resource_title = "SystemOfferings"
+				resource_cloud = @client.list_service_offerings({"issystem" => true})["serviceoffering"]
 			end
 			resource_file = YAML.load_file("#{@config_file["resource_directory"]}/#{@resource}.yaml")["#{resource_title}"]
 			return resource_file, resource_cloud
@@ -97,12 +100,12 @@ module Cloudconfig
 						i += 1
 					end
 				end
-				if (!found) && (@resource == "serviceofferings")
-					# Create resources. (Only works for service offerings at the moment)
+				if (!found) && ((@resource == "serviceofferings") || (@resource == "systemofferings"))
+					# Create resources
 					created.push(r_total)
 				end
 			end
-			if delete && (resource_cloud.length > 0) && (@resource == "serviceofferings")
+			if delete && (resource_cloud.length > 0) && ((@resource == "serviceofferings") || (@resource == "systemofferings"))
 				# Remove all resources that are not included in yaml file. (Only works for service offerings at the moment)
 				for r in resource_cloud
 					deleted.push(r)
@@ -114,7 +117,7 @@ module Cloudconfig
 
 
 		def update_resource(res)
-			if @resource == "serviceofferings"
+			if (@resource == "serviceofferings") || (@resource == "systemofferings")
 				@client.delete_service_offering({"id" => "#{res["id"]}"})
 				@client.create_service_offering(res)
 			elsif @resource == "hosts"
@@ -135,14 +138,14 @@ module Cloudconfig
 
 
 		def create_resource(res)
-			if @resource == "serviceofferings"
+			if (@resource == "serviceofferings") || (@resource == "systemofferings")
 				@client.create_service_offering(res)
 			end
 		end
 
 
 		def delete_resource(res)
-			if @resource == "serviceofferings"
+			if (@resource == "serviceofferings") || (@resource == "systemofferings")
 				@client.delete_service_offering({"id" => "#{res["id"]}"})
 			end
 		end
@@ -156,7 +159,7 @@ module Cloudconfig
 		def compare_resources()
 			@delete = true
 			@client = create_cloudstack_client()
-			resources = ["serviceofferings", "hosts", "storages", "diskofferings"]
+			resources = ["serviceofferings", "hosts", "storages", "diskofferings", "systemofferings"]
 			for r in resources
 				@res = r
 				resource_file, resource_cloud = define_yamlfile_and_cloudresource()
