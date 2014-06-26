@@ -119,6 +119,9 @@ module Cloudconfig
 		def update_resource(res)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
 				@client.delete_service_offering({"id" => "#{res["id"]}"})
+				if @resource == "systemofferings"
+					res["issystem"] = true
+				end
 				@client.create_service_offering(res)
 			elsif @resource == "hosts"
 				@client.update_host(res)
@@ -139,6 +142,9 @@ module Cloudconfig
 
 		def create_resource(res)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
+				if @resource == "systemofferings"
+					res["issystem"] = true
+				end
 				@client.create_service_offering(res)
 			end
 		end
