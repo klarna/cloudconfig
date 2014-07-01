@@ -100,12 +100,12 @@ module Cloudconfig
 						i += 1
 					end
 				end
-				if (!found) && ((@resource == "serviceofferings") || (@resource == "systemofferings"))
+				if (!found) && ((@resource == "serviceofferings") || (@resource == "diskofferings") || (@resource == "systemofferings"))
 					# Create resources
 					created.push(r_total)
 				end
 			end
-			if delete && (resource_cloud.length > 0) && ((@resource == "serviceofferings") || (@resource == "systemofferings"))
+			if delete && (resource_cloud.length > 0) && ((@resource == "serviceofferings") || (@resource == "diskofferings") || (@resource == "systemofferings"))
 				# Remove all resources that are not included in yaml file. (Only works for service offerings at the moment)
 				for r in resource_cloud
 					deleted.push(r)
@@ -125,14 +125,8 @@ module Cloudconfig
 			elsif @resource == "storages"
 				@client.update_storage_pool(res)
 			elsif @resource == "diskofferings"
-				# Parameter iscustomized has different name (customized) when creating resource, and parameter disksize create error if iscustomized is true.
-				if res["iscustomized"] == true
-					res.delete("disksize")
-				end
-				res = res.merge({"customized" => res["iscustomized"]})
-				res.delete("iscustomized")
 				@client.delete_disk_offering({"id" => "#{res["id"]}"})
-				@client.create_disk_offering(res)
+				create_resource(res)
 			end
 		end
 
@@ -140,6 +134,14 @@ module Cloudconfig
 		def create_resource(res)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
 				@client.create_service_offering(res)
+			elsif (@resource == "diskofferings")
+				# Parameter iscustomized has different name (customized) when creating resource, and parameter disksize create error if iscustomized is true.
+				if res["iscustomized"] == true
+					res.delete("disksize")
+				end
+				res = res.merge({"customized" => res["iscustomized"]})
+				res.delete("iscustomized")
+				@client.create_disk_offering(res)
 			end
 		end
 
@@ -147,6 +149,8 @@ module Cloudconfig
 		def delete_resource(res)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
 				@client.delete_service_offering({"id" => "#{res["id"]}"})
+			elsif (@resource == "diskofferings")
+				@client.delete_disk_offering({"id" => "#{res["id"]}"})
 			end
 		end
 
