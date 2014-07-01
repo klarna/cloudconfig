@@ -41,7 +41,7 @@ Cloudconfig will configure resources in Cloudstack according to resources in yam
 Resources that currently are handled by cloudconfig:
 
 - Compute offerings (create, update, delete)
-- Disk offerings (update)
+- Disk offerings (create, update, delete)
 - System offerings (create, update, delete)
 - Host tags (create, delete)
 - Storage tags (create, delete)

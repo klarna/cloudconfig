@@ -8,7 +8,7 @@ module Cloudconfig
 	class Resources
 
 
-		attr_accessor :config, :delete, :dryrun, :resource, :client, :config_file
+		attr_accessor :config, :delete, :dryrun, :resource, :client, :config_file, :only_update
 
 
 		def initialize(resource)
@@ -17,6 +17,7 @@ module Cloudconfig
 			@resource = resource
 			uconfig = UserConfig.new('.cloudconfig')
 			@config_file = uconfig['config.yaml']
+			@only_update = false
 		end
 
 
@@ -31,13 +32,17 @@ module Cloudconfig
 				for r in r_updated
 					r_diff = Hash[(r[0].to_a) - (r[1].to_a)]
 					r_union = Hash[r[0].to_a | r_diff.to_a]
+					r_temp = r_diff
+					["displaytext", "sortkey", "displayoffering"].each{ |param| r_temp.delete_if{ |key, value| key == param } }
+					if r_temp.empty?
+						@only_update = true
+					end
 					update_resource(r_union)
 				end
 				r_created.each{ |r| create_resource(r) }
 				r_deleted.each{ |r| delete_resource(r) }
 			end
 			for r in r_updated
-				# r_diff represents the parameters that should be changed in resource
 				r_diff = Hash[(r[0].to_a) - (r[1].to_a)]
 				feedback += "Some values has been changed in #{@resource} named #{r[0]["name"]}.\nOld values were:\n#{JSON.pretty_generate(r[1])}\nNew values are:\n#{JSON.pretty_generate(r_diff)}\n"
 			end
@@ -100,12 +105,12 @@ module Cloudconfig
 						i += 1
 					end
 				end
-				if (!found) && ((@resource == "serviceofferings") || (@resource == "systemofferings"))
+				if (!found) && ((@resource == "serviceofferings") || (@resource == "diskofferings") || (@resource == "systemofferings"))
 					# Create resources
 					created.push(r_total)
 				end
 			end
-			if delete && (resource_cloud.length > 0) && ((@resource == "serviceofferings") || (@resource == "systemofferings"))
+			if delete && (resource_cloud.length > 0) && ((@resource == "serviceofferings") || (@resource == "diskofferings") || (@resource == "systemofferings"))
 				# Remove all resources that are not included in yaml file. (Only works for service offerings at the moment)
 				for r in resource_cloud
 					deleted.push(r)
@@ -118,21 +123,23 @@ module Cloudconfig
 
 		def update_resource(res)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
-				@client.delete_service_offering({"id" => "#{res["id"]}"})
-				@client.create_service_offering(res)
+				if @only_update
+					@client.update_service_offering(res)
+				else
+					@client.delete_service_offering({"id" => "#{res["id"]}"})
+					@client.create_service_offering(res)
+				end
 			elsif @resource == "hosts"
 				@client.update_host(res)
 			elsif @resource == "storages"
 				@client.update_storage_pool(res)
 			elsif @resource == "diskofferings"
-				# Parameter iscustomized has different name (customized) when creating resource, and parameter disksize create error if iscustomized is true.
-				if res["iscustomized"] == true
-					res.delete("disksize")
+				if @only_update
+					@client.update_disk_offering(res)
+				else
+					@client.delete_disk_offering({"id" => "#{res["id"]}"})
+					create_resource(res)
 				end
-				res = res.merge({"customized" => res["iscustomized"]})
-				res.delete("iscustomized")
-				@client.delete_disk_offering({"id" => "#{res["id"]}"})
-				@client.create_disk_offering(res)
 			end
 		end
 
@@ -140,6 +147,14 @@ module Cloudconfig
 		def create_resource(res)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
 				@client.create_service_offering(res)
+			elsif (@resource == "diskofferings")
+				# Parameter iscustomized has different name (customized) when creating resource, and parameter disksize create error if iscustomized is true.
+				if res["iscustomized"] == true
+					res.delete("disksize")
+				end
+				res = res.merge({"customized" => res["iscustomized"]})
+				res.delete("iscustomized")
+				@client.create_disk_offering(res)
 			end
 		end
 
@@ -147,6 +162,8 @@ module Cloudconfig
 		def delete_resource(res)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
 				@client.delete_service_offering({"id" => "#{res["id"]}"})
+			elsif (@resource == "diskofferings")
+				@client.delete_disk_offering({"id" => "#{res["id"]}"})
 			end
 		end
 
