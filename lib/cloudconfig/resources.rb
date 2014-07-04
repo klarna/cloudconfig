@@ -8,7 +8,7 @@ module Cloudconfig
 	class Resources
 
 
-		attr_accessor :config, :delete, :dryrun, :resource, :client, :config_file, :only_update
+		attr_accessor :config, :delete, :dryrun, :resource, :client, :config_file
 
 
 		def initialize(resource)
@@ -17,7 +17,6 @@ module Cloudconfig
 			@resource = resource
 			uconfig = UserConfig.new('.cloudconfig')
 			@config_file = uconfig['config.yaml']
-			@only_update = false
 		end
 
 
@@ -32,11 +31,6 @@ module Cloudconfig
 				for r in r_updated
 					r_diff = Hash[(r[0].to_a) - (r[1].to_a)]
 					r_union = Hash[r[0].to_a | r_diff.to_a]
-					r_temp = r_diff
-					["displaytext", "sortkey", "displayoffering"].each{ |param| r_temp.delete_if{ |key, value| key == param } }
-					if r_temp.empty?
-						@only_update = true
-					end
 					update_resource(r_union)
 				end
 				r_created.each{ |r| create_resource(r) }
@@ -123,23 +117,15 @@ module Cloudconfig
 
 		def update_resource(res)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
-				if @only_update
-					@client.update_service_offering(res)
-				else
-					@client.delete_service_offering({"id" => "#{res["id"]}"})
-					@client.create_service_offering(res)
-				end
+				@client.delete_service_offering({"id" => "#{res["id"]}"})
+				@client.create_service_offering(res)
 			elsif @resource == "hosts"
 				@client.update_host(res)
 			elsif @resource == "storages"
 				@client.update_storage_pool(res)
 			elsif @resource == "diskofferings"
-				if @only_update
-					@client.update_disk_offering(res)
-				else
-					@client.delete_disk_offering({"id" => "#{res["id"]}"})
-					create_resource(res)
-				end
+				@client.delete_disk_offering({"id" => "#{res["id"]}"})
+				create_resource(res)
 			end
 		end
 
