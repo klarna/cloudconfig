@@ -29,13 +29,14 @@ module Cloudconfig
 	  end
 	  desc "update RESOURCE", "Updates RESOURCE from configuration yaml file."
 	  long_desc <<-LONGDESC
-	    `update serviceofferings` will configure service offerings.
-	    \x5`update hosts` will configure hosts.
-	    \x5`update storages` will configure storage pools.
-	    \x5`update diskofferings` will configure disk offerings.
-            \x5`update systemofferings` will configure system offerings.
+	    `update serviceofferings` will configure service offerings. (X)
+	    \x5`update hosts` will configure hosts tags.
+	    \x5`update storages` will configure storage pools tags.
+	    \x5`update diskofferings` will configure disk offerings. (X)
+            \x5`update systemofferings` will configure system offerings. (X)
+            \x5`Marked with X` - The resource will be have a new ID number when updated.
 	  LONGDESC
-	  option :delete, :desc => "delete option for service offerings, resources existing in CloudPlatform but not in configuation yaml file are deleted in CloudPlatform."
+	  option :delete, :desc => "delete option for service offerings, disk offerings and system offerings - resources existing in CloudPlatform but not in configuation yaml file are deleted in CloudPlatform."
 	  option :dryrun, :desc => "dry run option, changes that should be made are listed, but not performed."
 	  def update(resource)
 	    r = Resources.new(resource)

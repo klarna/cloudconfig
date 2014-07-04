@@ -37,7 +37,6 @@ module Cloudconfig
 				r_deleted.each{ |r| delete_resource(r) }
 			end
 			for r in r_updated
-				# r_diff represents the parameters that should be changed in resource
 				r_diff = Hash[(r[0].to_a) - (r[1].to_a)]
 				feedback += "Some values has been changed in #{@resource} named #{r[0]["name"]}.\nOld values were:\n#{JSON.pretty_generate(r[1])}\nNew values are:\n#{JSON.pretty_generate(r_diff)}\n"
 			end
