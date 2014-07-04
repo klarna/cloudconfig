@@ -42,7 +42,8 @@ Cloudconfig will configure resources in Cloudstack according to resources in yam
 Resources that currently are handled by cloudconfig:
 
 - Compute offerings (create, update, delete)
-- Disk offerings (update)
+- Disk offerings (create, update, delete)
+- System offerings (create, update, delete)
 - Host tags (create, delete)
 - Storage tags (create, delete)
 
@@ -52,7 +53,8 @@ Resource files are expected to be structured in following manner in configured r
     ├── diskofferings.yaml
     ├── hosts.yaml
     ├── serviceofferings.yaml
-    └── storages.yaml
+    ├── storages.yaml 
+    └── systemofferings.yaml
 
 diskofferings.yaml:
 
@@ -93,6 +95,24 @@ storage.yaml:
 
       ssd: { tags: "ssd",
              zonename: "example" }
+
+systemofferings.yaml:
+
+    SystemOfferings:
+      console-proxy: { displaytext: "1vCPU, 500MHz, 1GB RAM",
+                       cpunumber: 1,
+                       cpuspeed: 500,
+                       memory: 1024,
+                       storagetype: "shared",
+                       issystem: true,
+                       systemvmtype: "consoleproxy" }
+      domain-router: { displaytext: "1vCPU, 500MHz, 256MB RAM",
+                       cpunumber: 1,
+                       cpuspeed: 500,
+                       memory: 256,
+                       storagetype: "shared",
+                       issystem: true,
+                       systemvmtype: "domainrouter" }
 
 ### Testing
 
