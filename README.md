@@ -59,13 +59,20 @@ Resource files are expected to be structured in following manner in configured r
 diskofferings.yaml:
 
     DiskOfferings:
-      20gb: { tags: "SSD",
-              displaytext: "20GB SSD Drive",
-              disksize: 200 }
+      20gb:   { tags: "SSD",
+                displaytext: "20GB SSD Drive",
+                iscustomized: false,
+                disksize: 200 }
 
-      50GB: { tags: "SSD",
-              displaytext: "50GB SSD Drive",
-              disksize: 50 }
+      50GB:   { tags: "SSD",
+                displaytext: "50GB SSD Drive",
+		iscustomized: false,
+                disksize: 50 }
+
+      Custom: { tags: "",
+                displaytext: "Customized disk offering size",
+                iscustomized: true,
+		disksize: 0 }
 
 hosts.yaml:
 

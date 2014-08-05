@@ -30,8 +30,18 @@ module Cloudconfig
 			else
 				for r in r_updated
 					r_diff = Hash[(r[0].to_a) - (r[1].to_a)]
-					r_union = Hash[r[0].to_a | r_diff.to_a]
-					update_resource(r_union)
+					r_union = Hash[r[1].to_a | r[0].to_a]
+					r_type_of_update = r_diff.clone
+					r_type_of_update.delete_if { |param| param == "displaytext" }
+					r_type_of_update.delete_if { |param| param == "sortkey" }
+					r_type_of_update.delete_if { |param| param == "displayoffering" }
+					only_update_resource = false
+					if r_type_of_update.empty?
+						only_update_resource = true
+					else
+						only_update_resource = false
+					end
+					update_resource(r_union, only_update_resource)
 				end
 				r_created.each{ |r| create_resource(r) }
 				r_deleted.each{ |r| delete_resource(r) }
@@ -115,20 +125,28 @@ module Cloudconfig
 		end
 
 
-		def update_resource(res)
+		def update_resource(res, only_update)
 			if (@resource == "serviceofferings") || (@resource == "systemofferings")
-				@client.delete_service_offering({"id" => "#{res["id"]}"})
-				if @resource == "systemofferings"
-					res["issystem"] = true
+				if !only_update
+					@client.delete_service_offering({"id" => "#{res["id"]}"})
+					if @resource == "systemofferings"
+						res["issystem"] = true
+					end
+					@client.create_service_offering(res)
+				else
+					@client.update_service_offering(res)
 				end
-				@client.create_service_offering(res)
 			elsif @resource == "hosts"
 				@client.update_host(res)
 			elsif @resource == "storages"
 				@client.update_storage_pool(res)
 			elsif @resource == "diskofferings"
-				@client.delete_disk_offering({"id" => "#{res["id"]}"})
-				create_resource(res)
+				if !only_update
+					@client.delete_disk_offering({"id" => "#{res["id"]}"})
+					create_resource(res)
+				else
+					@client.update_disk_offering(res)
+				end
 			end
 		end
 
