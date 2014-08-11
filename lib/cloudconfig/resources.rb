@@ -30,9 +30,21 @@ module Cloudconfig
         if @dryrun
           puts "The following actions would be performed with this command:\n"
         end
-        r_updated.each{ |r| update_resource(r) }
-        r_created.each{ |r| create_resource(r, false) }
-        r_deleted.each{ |r| delete_resource(r, false) }
+        # r_updated.each{ |r| update_resource(r) }
+        for created in r_created
+          resource_status = create_resource(created, false)
+          for r in resource_status
+            if /^Error/.match(r)
+              puts "#{r}\n"
+            else
+              puts "The #{@resource} named #{r} has been created\n"
+            end
+          end
+        end
+        for deleted in r_deleted
+          resource_status = delete_resource(deleted, false)
+          resource_status.each { |r| puts "The #{@resource} named #{r} has been deleted" }
+        end
       end
     end
 
@@ -167,10 +179,10 @@ module Cloudconfig
 
 
     def create_resource(res, feedback_given)
-      created = false
+      created = Array.new
       errors = has_creation_errors?(res)
       if !errors
-        created = true
+        created.push(res["name"])
         if (@resource == "serviceofferings") || (@resource == "systemofferings")
           if @resource == "systemofferings"
             res["issystem"] = true
@@ -188,34 +200,28 @@ module Cloudconfig
           if !@dryrun
             @client.create_disk_offering(res)
           end
-        else
-          created = false
         end
       else
-        errors.each { |error| puts "#{error}\n" }
+        return errors
       end
-      if created && !feedback_given
-        puts "The #{@resource} named #{res["name"]} has been created\n"
-      end
+      created
     end
 
 
     def delete_resource(res, feedback_given)
-      deleted = false
+      deleted = Array.new
       if (@resource == "serviceofferings") || (@resource == "systemofferings")
-        deleted = true
+        deleted.push(res["name"])
         if !@dryrun
           @client.delete_service_offering({"id" => "#{res["id"]}"})
         end
       elsif (@resource == "diskofferings")
-        deleted = true
+        deleted.push(res["name"])
         if !@dryrun
           @client.delete_disk_offering({"id" => "#{res["id"]}"})
         end
       end
-      if deleted && !feedback_given
-        puts "The #{@resource} named #{res["name"]} has been deleted\n" 
-      end
+      deleted
     end
 
 
