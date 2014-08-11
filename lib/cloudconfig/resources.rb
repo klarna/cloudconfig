@@ -129,7 +129,7 @@ module Cloudconfig
       end
       # All these resources could need recreation and are controlled, to see if all nedded requirements are met.
       if (@resource == "serviceofferings") || (@resource == "systemofferings") || (@resource == "diskofferings")
-        if creation_is_error_free(res_union)
+        if !has_creation_errors?(res_union)
           updated = true
           if !@dryrun
             if !changes_requiring_recreation.empty?
@@ -168,7 +168,8 @@ module Cloudconfig
 
     def create_resource(res, feedback_given)
       created = false
-      if creation_is_error_free(res)
+      errors = has_creation_errors?(res)
+      if !errors
         created = true
         if (@resource == "serviceofferings") || (@resource == "systemofferings")
           if @resource == "systemofferings"
@@ -190,6 +191,8 @@ module Cloudconfig
         else
           created = false
         end
+      else
+        errors.each { |error| puts "#{error}\n" }
       end
       if created && !feedback_given
         puts "The #{@resource} named #{res["name"]} has been created\n"
@@ -216,31 +219,30 @@ module Cloudconfig
     end
 
 
-    def creation_is_error_free(res)
-      error_free = true
+    def has_creation_errors?(res)
+      errors = Array.new
       if !res.has_key?("displaytext")
-        error_free = false
-        puts "Error: #{res["name"]} could not be created since 'displaytext' has not been specified in configuration file."
+        errors.push("Error: #{res["name"]} could not be created since 'displaytext' has not been specified in configuration file.")
       end
       if @resource == "diskofferings"
         if (!res.has_key?("iscustomized") || (res["iscustomized"] == false)) && (!res.has_key?("disksize") || (res["disksize"] == 0))
-          error_free = false
-          puts "\nError: The #{@resource} named #{res["name"]} could not be created since 'iscustomized' is unspecified or set to false and 'disksize' has not been specified, or has been specified to a value of 0 or below."
+          errors.push("Error: #{res["name"]} could not be created since 'iscustomized' is unspecified or set to false and 'disksize' has not been specified, or has been specified to a value of 0 or below.")
         end
       elsif (@resource == "serviceofferings") || (@resource == "systemofferings")
         if !res.has_key?("cpunumber") || !res.has_key?("cpuspeed") || !res.has_key?("memory") || (res["cpunumber"] <= 0) || (res["cpuspeed"] <= 0) || (res["memory"] <= 0)
-          error_free = false
-          puts "\nError: The #{@resource} named #{res["name"]} could not be created since 'cpunumber', 'cpuspeed' and/or 'memory' has not been defined, or is defined as 0 or below."
+          errors.push("Error: #{res["name"]} could not be created since 'cpunumber', 'cpuspeed' and/or 'memory' has not been defined, or is defined as 0 or below.")
         end
         if @resource == "systemofferings"
           approved_systemvmtype = ["domainrouter", "consoleproxy", "secondarystoragevm"]
           if !res.has_key?("systemvmtype") || approved_systemvmtype.include?(res["systemofferings"])
-            error_free = false
-            puts "\nError: The #{@resource} named #{res["name"]} could not be created since 'systemvmtype' is unspecified or set to an value not valid in Cloudconfig."	
+            errors.push("Error: #{res["name"]} could not be created since 'systemvmtype' is unspecified or set to an value not valid in Cloudconfig.")
           end
         end
       end
-      return error_free
+      if errors.empty?
+        return false
+      end
+      errors 
     end
 
 
