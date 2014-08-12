@@ -28,11 +28,30 @@ module Cloudconfig
       else
         r_updated, r_created, r_deleted = check_resource(resource_file, resource_cloud)
         if @dryrun
-          puts "The following actions would be performed with this command:\n"
+          puts "The following actions would be performed with this command:"
         end
-        r_updated.each{ |r| update_resource(r) }
-        r_created.each{ |r| create_resource(r, false) }
-        r_deleted.each{ |r| delete_resource(r, false) }
+        for updated in r_updated
+          updated_resource, only_updated = update_resource(updated)
+          if /^Error/.match(updated_resource[0])
+            updated_resource.each { |r| puts r }
+          elsif only_updated
+            puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
+          elsif updated_resource.length > 0
+            puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}\n"
+          end
+        end
+        for created in r_created
+          created_resource = create_resource(created)
+          if /^Error/.match(created_resource[0])
+            created_resource.each { |r| puts r }
+          else
+            puts "The #{@resource} named #{created_resource[0]} has been created"
+          end
+        end
+        for deleted in r_deleted
+          deleted_resource = delete_resource(deleted)
+          puts "The #{@resource} named #{deleted_resource[0]} has been deleted"
+        end
       end
     end
 
@@ -114,63 +133,74 @@ module Cloudconfig
 
 
     def update_resource(res)
-      updated = false
+      updated = true
+      updated_resource = Array.new
       res_diff = Hash[(res[0].to_a) - (res[1].to_a)]
       res_union = Hash[res[1].to_a | res[0].to_a]
-      changes_requiring_recreation = res_diff.clone
       # If the parameters that differs only contain the following keys, then the resource only needs an update. Otherwise, a recreation is required.
+      changes = res_diff.clone
       only_update_parameters = ["displaytext", "sortkey", "displayoffering"]
-      only_update_parameters.each { |searched_param| changes_requiring_recreation.delete_if { |actual_param| actual_param == searched_param } }
-      for param, value in changes_requiring_recreation
+      only_update_parameters.each { |searched_param| changes.delete_if { |actual_param| actual_param == searched_param } }
+      for param, value in changes
         if (!res[1].has_key?(param) || (res[1][param] == "")) && (value == "")
-          changes_requiring_recreation.delete(param)
+          changes.delete(param)
           res_diff.delete(param)
         end
       end
       # All these resources could need recreation and are controlled, to see if all nedded requirements are met.
       if (@resource == "serviceofferings") || (@resource == "systemofferings") || (@resource == "diskofferings")
-        if !has_creation_errors?(res_union)
-          updated = true
-          if !@dryrun
-            if !changes_requiring_recreation.empty?
-              delete_resource(res_union, updated)
-              create_resource(res_union, updated)
+        if !changes.empty?
+          # Recreation is needed
+          updated = false
+          deleted = delete_resource(res_union)
+          created = create_resource(res_union)
+          if !deleted.empty? && !created.empty?
+            if /^Error/.match(created[0])
+              updated_resource.push(created)
             else
-              if (@resource == "serviceofferings") || (@resource == "systemofferings")
-                @client.update_service_offering(res_union)
-              elsif @resource == "diskofferings"
-                @client.update_disk_offering(res_union)
-              end
+              updated_resource.push(res[0]["name"], res[1], res_diff)
             end
+          end
+        else
+          # Only an update is nedded
+          if (@resource == "serviceofferings") || (@resource == "systemofferings")
+            if !@dryrun
+              @client.update_service_offering(res_union)
+            end
+          elsif @resource == "diskofferings"
+            if !@dryrun
+              @client.update_disk_offering(res_union)
+            end
+          else
+            updated = false
           end
         end
         # All these resources can only be updated.
       elsif (@resource == "hosts") || (@resource == "storages")
-        updated = true
-        if !@dryrun
-          if @resource == "hosts"
+        if @resource == "hosts"
+          if !@dryrun
             @client.update_host(res_union)
-          elsif @resource == "storages"
+          end
+        elsif @resource == "storages"
+          if !@dryrun
             @client.update_storage_pool(res_union)
           end
-        end
-      end
-      # Update has been made, and feedback is given to the user.
-      if updated
-        if changes_requiring_recreation.empty?
-          puts "Some values has been changed in the #{@resource} named #{res[0]["name"]}.\nOld values were:\n#{JSON.pretty_generate(res[1])}\nNew values are:\n#{JSON.pretty_generate(res_diff)}\n"
         else
-          puts "The #{@resource} named #{res[0]["name"]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(res[1])}\nNew values are:\n#{JSON.pretty_generate(res_diff)}\n"
+          updated = false
         end
       end
+      if updated
+        updated_resource.push(res[0]["name"], res[1], res_diff)
+      end
+      return updated_resource, updated
     end
 
 
-    def create_resource(res, feedback_given)
-      created = false
+    def create_resource(res)
+      created = Array.new
       errors = has_creation_errors?(res)
       if !errors
-        created = true
+        created.push(res["name"])
         if (@resource == "serviceofferings") || (@resource == "systemofferings")
           if @resource == "systemofferings"
             res["issystem"] = true
@@ -188,34 +218,28 @@ module Cloudconfig
           if !@dryrun
             @client.create_disk_offering(res)
           end
-        else
-          created = false
         end
       else
-        errors.each { |error| puts "#{error}\n" }
+        return errors
       end
-      if created && !feedback_given
-        puts "The #{@resource} named #{res["name"]} has been created\n"
-      end
+      created
     end
 
 
-    def delete_resource(res, feedback_given)
-      deleted = false
+    def delete_resource(res)
+      deleted = Array.new
       if (@resource == "serviceofferings") || (@resource == "systemofferings")
-        deleted = true
+        deleted.push(res["name"])
         if !@dryrun
           @client.delete_service_offering({"id" => "#{res["id"]}"})
         end
       elsif (@resource == "diskofferings")
-        deleted = true
+        deleted.push(res["name"])
         if !@dryrun
           @client.delete_disk_offering({"id" => "#{res["id"]}"})
         end
       end
-      if deleted && !feedback_given
-        puts "The #{@resource} named #{res["name"]} has been deleted\n" 
-      end
+      deleted
     end
 
 
