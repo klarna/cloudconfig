@@ -31,28 +31,34 @@ module Cloudconfig
           puts "The following actions would be performed with this command:"
         end
         for updated in r_updated
-          updated_resource, only_updated = update_resource(updated)
-          if updated_resource[0].kind_of? Exception
-            updated_resource.each { |error| puts error.inspect }
-          elsif !updated_resource.empty?
-            if only_updated
-              puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
-            else
-              puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
+          begin
+            updated_resource, only_updated = update_resource(updated)
+            if !updated_resource.empty?
+              if only_updated
+                puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
+              else
+                puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
+              end
             end
+          rescue Exception => error_msg
+            puts "#{updated[0]["name"]} could not be updated since: #{error_msg}"
           end
         end
         for created in r_created
-          created_resource = create_resource(created)
-          if created_resource[0].kind_of? Exception
-            created_resource.each { |error| puts error.inspect }
-          else
-            puts "The #{@resource} named #{created_resource[0]} has been created"
+          begin
+            created_resource = create_resource(created)
+            if !created_resource.empty?
+              puts "The #{@resource} named #{created_resource[0]} has been created"
+            end
+          rescue Exception => error_msg
+            puts "#{created["name"]} could not be created since: #{error_msg}"
           end
         end
         for deleted in r_deleted
           deleted_resource = delete_resource(deleted)
-          puts "The #{@resource} named #{deleted_resource[0]} has been deleted"
+          if !deleted_resource.empty?
+            puts "The #{@resource} named #{deleted_resource[0]} has been deleted"
+          end
         end
       end
     end
@@ -159,14 +165,10 @@ module Cloudconfig
             @dryrun = true
             created = create_resource(res_union)
             if !created.empty?
-              if created[0].kind_of? Exception
-                created.each { |error| updated_resource.push(error) }
-              else
-                @dryrun = actual_dryrun
-                deleted = delete_resource(res_union)
-                created = create_resource(res_union)
-                updated_resource.push(res[0]["name"], res[1], res_diff)
-              end
+              @dryrun = actual_dryrun
+              deleted = delete_resource(res_union)
+              created = create_resource(res_union)
+              updated_resource.push(res[0]["name"], res[1], res_diff)
             end
             @dryrun = actual_dryrun
           else
@@ -208,30 +210,26 @@ module Cloudconfig
 
 
     def create_resource(res)
+      check_for_creation_errors(res)
       created = Array.new
-      errors = has_creation_errors?(res)
-      if !errors
-        created.push(res["name"])
-        if (@resource == "serviceofferings") || (@resource == "systemofferings")
-          if @resource == "systemofferings"
-            res["issystem"] = true
-          end
-          if !@dryrun
-            @client.create_service_offering(res)
-          end
-        elsif (@resource == "diskofferings")
-          # Parameter iscustomized has different name (customized) when creating resource, and parameter disksize create error if iscustomized is true.
-          if res.has_key?("iscustomized") && res["iscustomized"] == true
-            res.delete("disksize")
-          end
-          res = res.merge({"customized" => res["iscustomized"]})
-          res.delete("iscustomized")
-          if !@dryrun
-            @client.create_disk_offering(res)
-          end
+      created.push(res["name"])
+      if (@resource == "serviceofferings") || (@resource == "systemofferings")
+        if @resource == "systemofferings"
+          res["issystem"] = true
         end
-      else
-        return errors
+        if !@dryrun
+          @client.create_service_offering(res)
+        end
+      elsif (@resource == "diskofferings")
+        # Parameter iscustomized has different name (customized) when creating resource, and parameter disksize create error if iscustomized is true.
+        if res.has_key?("iscustomized") && res["iscustomized"] == true
+          res.delete("disksize")
+        end
+        res = res.merge({"customized" => res["iscustomized"]})
+        res.delete("iscustomized")
+        if !@dryrun
+          @client.create_disk_offering(res)
+        end
       end
       created
     end
@@ -254,30 +252,29 @@ module Cloudconfig
     end
 
 
-    def has_creation_errors?(res)
+    def check_for_creation_errors(res)
       errors = Array.new
       if !res.has_key?("displaytext")
-        errors.push(CreationError.new("#{res["name"]} could not be created since 'displaytext' has not been specified in configuration file."))
+        errors.push("'displaytext' has not been specified in configuration file.")
       end
       if @resource == "diskofferings"
         if (!res.has_key?("iscustomized") || (res["iscustomized"] == false)) && (!res.has_key?("disksize") || (res["disksize"] == 0))
-          errors.push(CreationError.new("#{res["name"]} could not be created since 'iscustomized' is unspecified or set to false and 'disksize' has not been specified, or has been specified to a value of 0 or below."))
+          errors.push("'iscustomized' is unspecified or set to false and 'disksize' has not been specified, or has been specified to a value of 0 or below.")
         end
       elsif (@resource == "serviceofferings") || (@resource == "systemofferings")
         if !res.has_key?("cpunumber") || !res.has_key?("cpuspeed") || !res.has_key?("memory") || (res["cpunumber"] <= 0) || (res["cpuspeed"] <= 0) || (res["memory"] <= 0)
-          errors.push(CreationError.new("#{res["name"]} could not be created since 'cpunumber', 'cpuspeed' and/or 'memory' has not been defined, or is defined as 0 or below."))
+          errors.push("'cpunumber', 'cpuspeed' and/or 'memory' has not been defined, or is defined as 0 or below.")
         end
         if @resource == "systemofferings"
           approved_systemvmtype = ["domainrouter", "consoleproxy", "secondarystoragevm"]
           if !res.has_key?("systemvmtype") || !approved_systemvmtype.include?(res["systemvmtype"])
-              errors.push(CreationError.new("#{res["name"]} could not be created since 'systemvmtype' is unspecified or set to a value not valid in Cloudconfig."))
+              errors.push("'systemvmtype' is unspecified or set to a value not valid in Cloudconfig.")
           end
         end
       end
-      if errors.empty?
-        return false
+      if !errors.empty?
+        raise CreationError, errors
       end
-      errors 
     end
 
 
