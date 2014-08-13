@@ -255,20 +255,20 @@ module Cloudconfig
     def has_creation_errors?(res)
       errors = Array.new
       if !res.has_key?("displaytext")
-        errors.push("Error: #{res["name"]} could not be created since 'displaytext' has not been specified in configuration file.")
+        errors.push(CreationError.new("#{res["name"]} could not be created since 'displaytext' has not been specified in configuration file."))
       end
       if @resource == "diskofferings"
         if (!res.has_key?("iscustomized") || (res["iscustomized"] == false)) && (!res.has_key?("disksize") || (res["disksize"] == 0))
-          errors.push("Error: #{res["name"]} could not be created since 'iscustomized' is unspecified or set to false and 'disksize' has not been specified, or has been specified to a value of 0 or below.")
+          errors.push(CreationError.new("#{res["name"]} could not be created since 'iscustomized' is unspecified or set to false and 'disksize' has not been specified, or has been specified to a value of 0 or below."))
         end
       elsif (@resource == "serviceofferings") || (@resource == "systemofferings")
         if !res.has_key?("cpunumber") || !res.has_key?("cpuspeed") || !res.has_key?("memory") || (res["cpunumber"] <= 0) || (res["cpuspeed"] <= 0) || (res["memory"] <= 0)
-          errors.push("Error: #{res["name"]} could not be created since 'cpunumber', 'cpuspeed' and/or 'memory' has not been defined, or is defined as 0 or below.")
+          errors.push(CreationError.new("#{res["name"]} could not be created since 'cpunumber', 'cpuspeed' and/or 'memory' has not been defined, or is defined as 0 or below."))
         end
         if @resource == "systemofferings"
           approved_systemvmtype = ["domainrouter", "consoleproxy", "secondarystoragevm"]
-          if !res.has_key?("systemvmtype") || approved_systemvmtype.include?(res["systemofferings"])
-            errors.push("Error: #{res["name"]} could not be created since 'systemvmtype' is unspecified or set to an value not valid in Cloudconfig.")
+          if !res.has_key?("systemvmtype") || !approved_systemvmtype.include?(res["systemvmtype"])
+              errors.push(CreationError.new("#{res["name"]} could not be created since 'systemvmtype' is unspecified or set to a value not valid in Cloudconfig."))
           end
         end
       end
@@ -302,5 +302,8 @@ module Cloudconfig
       end
     end
 
+  end
+
+  class CreationError < Exception
   end
 end
