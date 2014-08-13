@@ -136,12 +136,15 @@ module Cloudconfig
     def update_resource(res)
       updated = true
       updated_resource = Array.new
+      # 'res_diff' contains the parameters that differs from the existing resource, and represents what will be added/changed
       res_diff = Hash[(res[0].to_a) - (res[1].to_a)]
+      # 'res_union' contains the the parameters that the new, updated or recreated, resource should contain
       res_union = Hash[res[1].to_a | res[0].to_a]
       # If the parameters that differs only contain the following keys, then the resource only needs an update. Otherwise, a recreation is required.
       changes = res_diff.clone
       only_update_parameters = ["displaytext", "sortkey", "displayoffering"]
       only_update_parameters.each { |searched_param| changes.delete_if { |actual_param| actual_param == searched_param } }
+      # Remove all changes that aren't actually changes, to avoid unnecessary updates
       for param, value in changes
         if (!res[1].has_key?(param) || (res[1][param] == "")) && (value == "")
           changes.delete(param)
@@ -154,10 +157,12 @@ module Cloudconfig
           if !changes.empty?
             # Recreation is needed
             updated = false
+            # The resource should only be deleted if it can be recreated, so a dryrun check needs to be made to assure this
             actual_dryrun = @dryrun
             @dryrun = true
             created = create_resource(res_union)
             if !created.empty?
+              # No errors occured, and an actual run can be made
               @dryrun = actual_dryrun
               deleted = delete_resource(res_union)
               created = create_resource(res_union)
@@ -208,13 +213,14 @@ module Cloudconfig
       created.push(res["name"])
       if (@resource == "serviceofferings") || (@resource == "systemofferings")
         if @resource == "systemofferings"
+          # All system offerings needs to include this
           res["issystem"] = true
         end
         if !@dryrun
           @client.create_service_offering(res)
         end
       elsif (@resource == "diskofferings")
-        # Parameter iscustomized has different name (customized) when creating resource, and parameter disksize create error if iscustomized is true.
+        # Parameter 'iscustomized' has different name ('customized') when creating resource, and parameter disksize create error if iscustomized is true
         if res.has_key?("iscustomized") && res["iscustomized"] == true
           res.delete("disksize")
         end
