@@ -147,47 +147,56 @@ module Cloudconfig
           res_diff.delete(param)
         end
       end
-      # All these resources could need recreation and are controlled, to see if all nedded requirements are met.
-      if (@resource == "serviceofferings") || (@resource == "systemofferings") || (@resource == "diskofferings")
-        if !changes.empty?
-          # Recreation is needed
-          updated = false
-          deleted = delete_resource(res_union)
-          created = create_resource(res_union)
-          if !deleted.empty? && !created.empty?
-            if /^Error/.match(created[0])
-              updated_resource.push(created)
+      if !res_diff.empty?
+        # All these resources could need recreation and are controlled, to see if all nedded requirements are met.
+        if (@resource == "serviceofferings") || (@resource == "systemofferings") || (@resource == "diskofferings")
+          if !changes.empty?
+            # Recreation is needed
+            updated = false
+            actual_dryrun = @dryrun
+            @dryrun = true
+            created = create_resource(res_union)
+            if !created.empty?
+              if created[0].kind_of? Exception
+                created.each { |error| updated_resource.push(error) }
+              else
+                @dryrun = actual_dryrun
+                deleted = delete_resource(res_union)
+                created = create_resource(res_union)
+                updated_resource.push(res[0]["name"], res[1], res_diff)
+              end
+            end
+            @dryrun = actual_dryrun
+          else
+            # Only an update is nedded
+            if (@resource == "serviceofferings") || (@resource == "systemofferings")
+              if !@dryrun
+                @client.update_service_offering(res_union)
+              end
+            elsif @resource == "diskofferings"
+              if !@dryrun
+                @client.update_disk_offering(res_union)
+              end
             else
-              updated_resource.push(res[0]["name"], res[1], res_diff)
+              updated = false
             end
           end
-        else
-          # Only an update is nedded
-          if (@resource == "serviceofferings") || (@resource == "systemofferings")
+          # All these resources can only be updated.
+        elsif (@resource == "hosts") || (@resource == "storages")
+          if @resource == "hosts"
             if !@dryrun
-              @client.update_service_offering(res_union)
+              @client.update_host(res_union)
             end
-          elsif @resource == "diskofferings"
+          elsif @resource == "storages"
             if !@dryrun
-              @client.update_disk_offering(res_union)
+              @client.update_storage_pool(res_union)
             end
           else
             updated = false
           end
         end
-        # All these resources can only be updated.
-      elsif (@resource == "hosts") || (@resource == "storages")
-        if @resource == "hosts"
-          if !@dryrun
-            @client.update_host(res_union)
-          end
-        elsif @resource == "storages"
-          if !@dryrun
-            @client.update_storage_pool(res_union)
-          end
-        else
-          updated = false
-        end
+      else
+        updated = false
       end
       if updated
         updated_resource.push(res[0]["name"], res[1], res_diff)
