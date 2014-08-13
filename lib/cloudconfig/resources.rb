@@ -22,43 +22,43 @@ module Cloudconfig
 
     def update()
       @client = create_cloudstack_client()
-      resource_file, resource_cloud = define_yamlfile_and_cloudresource()
-      if (resource_file == nil) || (resource_cloud == nil)
-        puts "Resource not supported."
-      else
-        r_updated, r_created, r_deleted = check_resource(resource_file, resource_cloud)
-        if @dryrun
-          puts "The following actions would be performed with this command:"
-        end
-        for updated in r_updated
-          begin
-            updated_resource, only_updated = update_resource(updated)
-            if !updated_resource.empty?
-              if only_updated
-                puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
-              else
-                puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
-              end
+      begin
+        resource_file, resource_cloud = define_yamlfile_and_cloudresource()
+      rescue Exception => error_msg
+        raise error_msg, "Resource could not be loaded from configuration file and/or the cloud."
+      end
+      r_updated, r_created, r_deleted = check_resource(resource_file, resource_cloud)
+      if @dryrun
+        puts "The following actions would be performed with this command:"
+      end
+      for updated in r_updated
+        begin
+          updated_resource, only_updated = update_resource(updated)
+          if !updated_resource.empty?
+            if only_updated
+              puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
+            else
+              puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
             end
-          rescue Exception => error_msg
-            puts "#{updated[0]["name"]} could not be updated since: #{error_msg}"
           end
+        rescue Exception => error_msg
+          puts "#{updated[0]["name"]} could not be updated since: #{error_msg}"
         end
-        for created in r_created
-          begin
-            created_resource = create_resource(created)
-            if !created_resource.empty?
-              puts "The #{@resource} named #{created_resource[0]} has been created"
-            end
-          rescue Exception => error_msg
-            puts "#{created["name"]} could not be created since: #{error_msg}"
+      end
+      for created in r_created
+        begin
+          created_resource = create_resource(created)
+          if !created_resource.empty?
+            puts "The #{@resource} named #{created_resource[0]} has been created"
           end
+        rescue Exception => error_msg
+          puts "#{created["name"]} could not be created since: #{error_msg}"
         end
-        for deleted in r_deleted
-          deleted_resource = delete_resource(deleted)
-          if !deleted_resource.empty?
-            puts "The #{@resource} named #{deleted_resource[0]} has been deleted"
-          end
+      end
+      for deleted in r_deleted
+        deleted_resource = delete_resource(deleted)
+        if !deleted_resource.empty?
+          puts "The #{@resource} named #{deleted_resource[0]} has been deleted"
         end
       end
     end
@@ -72,7 +72,6 @@ module Cloudconfig
 
     # Save the current list of resources in resource_cloud, and the ones in the yaml file in resource_file
     def define_yamlfile_and_cloudresource()
-      resource_exists = true
       if @resource == "serviceofferings"
         resource_title = "ServiceOfferings"
         resource_cloud = @client.list_service_offerings()["serviceoffering"]
@@ -88,15 +87,9 @@ module Cloudconfig
       elsif @resource == "systemofferings"
         resource_title = "SystemOfferings"
         resource_cloud = @client.list_service_offerings({"issystem" => true})["serviceoffering"]
-      else
-        resource_exists = false
       end
-      if resource_exists
-        resource_file = YAML.load_file("#{@config_file["resource_directory"]}/#{@resource}.yaml")["#{resource_title}"]
-        return resource_file, resource_cloud
-      else
-        return nil, nil
-      end
+      resource_file = YAML.load_file("#{@config_file["resource_directory"]}/#{@resource}.yaml")["#{resource_title}"]
+      return resource_file, resource_cloud
     end
 
 
