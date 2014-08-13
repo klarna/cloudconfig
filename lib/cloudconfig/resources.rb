@@ -32,18 +32,20 @@ module Cloudconfig
         end
         for updated in r_updated
           updated_resource, only_updated = update_resource(updated)
-          if /^Error/.match(updated_resource[0])
-            updated_resource.each { |r| puts r }
-          elsif only_updated
-            puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
-          elsif updated_resource.length > 0
-            puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}\n"
+          if updated_resource[0].kind_of? Exception
+            updated_resource.each { |error| puts error.inspect }
+          elsif !updated_resource.empty?
+            if only_updated
+              puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
+            else
+              puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
+            end
           end
         end
         for created in r_created
           created_resource = create_resource(created)
-          if /^Error/.match(created_resource[0])
-            created_resource.each { |r| puts r }
+          if created_resource[0].kind_of? Exception
+            created_resource.each { |error| puts error.inspect }
           else
             puts "The #{@resource} named #{created_resource[0]} has been created"
           end
