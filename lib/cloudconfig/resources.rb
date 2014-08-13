@@ -136,26 +136,14 @@ module Cloudconfig
     def update_resource(res)
       updated = true
       updated_resource = Array.new
-      # 'res_diff' contains the parameters that differs from the existing resource, and represents what will be added/changed
-      res_diff = Hash[(res[0].to_a) - (res[1].to_a)]
       # 'res_union' contains the the parameters that the new, updated or recreated, resource should contain
       res_union = Hash[res[1].to_a | res[0].to_a]
-      # If the parameters that differs only contain the following keys, then the resource only needs an update. Otherwise, a recreation is required.
-      changes = res_diff.clone
-      only_update_parameters = ["displaytext", "sortkey", "displayoffering"]
-      only_update_parameters.each { |searched_param| changes.delete_if { |actual_param| actual_param == searched_param } }
-      # Remove all changes that aren't actually changes, to avoid unnecessary updates
-      for param, value in changes
-        if (!res[1].has_key?(param) || (res[1][param] == "")) && (value == "")
-          changes.delete(param)
-          res_diff.delete(param)
-        end
-      end
+      # 'res_diff' contains the parameters that differs from the existing resource, and represents what will be added/changed
+      res_diff, needs_recreation = changes_required(res)
       if !res_diff.empty?
         # All these resources could need recreation and are controlled, to see if all nedded requirements are met.
         if (@resource == "serviceofferings") || (@resource == "systemofferings") || (@resource == "diskofferings")
-          if !changes.empty?
-            # Recreation is needed
+          if needs_recreation
             updated = false
             # The resource should only be deleted if it can be recreated, so a dryrun check needs to be made to assure this
             actual_dryrun = @dryrun
@@ -204,6 +192,28 @@ module Cloudconfig
         updated_resource.push(res[0]["name"], res[1], res_diff)
       end
       return updated_resource, updated
+    end
+
+
+    def changes_required(res)
+      # Find the parameters that differs
+      res_diff = Hash[(res[0].to_a) - (res[1].to_a)]
+      changes = res_diff.clone
+      # If the parameters that differs only contain the following keys, then the resource only needs an update. Otherwise, a recreation is required.
+      only_update_parameters = ["displaytext", "sortkey", "displayoffering"]
+      only_update_parameters.each { |searched_param| changes.delete_if { |actual_param| actual_param == searched_param } }
+      # Remove all changes that aren't actually changes, to avoid unnecessary updates
+      for param, value in changes
+        if (!res[1].has_key?(param) || (res[1][param] == "")) && (value == "")
+          changes.delete(param)
+          res_diff.delete(param)
+        end
+      end
+      needs_recreation = false
+      if !changes.empty?
+        needs_recreation = true
+      end
+      return res_diff, needs_recreation 
     end
 
 
