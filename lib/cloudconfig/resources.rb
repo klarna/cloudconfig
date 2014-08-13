@@ -145,18 +145,9 @@ module Cloudconfig
         if (@resource == "serviceofferings") || (@resource == "systemofferings") || (@resource == "diskofferings")
           if needs_recreation
             updated = false
-            # The resource should only be deleted if it can be recreated, so a dryrun check needs to be made to assure this
-            actual_dryrun = @dryrun
-            @dryrun = true
-            created = create_resource(res_union)
-            if !created.empty?
-              # No errors occured, and an actual run can be made
-              @dryrun = actual_dryrun
-              deleted = delete_resource(res_union)
-              created = create_resource(res_union)
+            if has_recreated_resource?(res_union)
               updated_resource.push(res[0]["name"], res[1], res_diff)
             end
-            @dryrun = actual_dryrun
           else
             # Only an update is nedded
             if (@resource == "serviceofferings") || (@resource == "systemofferings")
@@ -214,6 +205,23 @@ module Cloudconfig
         needs_recreation = true
       end
       return res_diff, needs_recreation 
+    end
+
+
+    def has_recreated_resource?(res)
+      # The resource should only be deleted if it can be recreated, so a dryrun check needs to be made to assure this
+      actual_dryrun = @dryrun
+      @dryrun = true
+      created = create_resource(res)
+      if !created.empty?
+        # No errors occured, and an actual run can be made
+        @dryrun = actual_dryrun
+        deleted = delete_resource(res)
+        created = create_resource(res)
+        return true
+      end
+      @dryrun = actual_dryrun
+      return false
     end
 
 
