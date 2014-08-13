@@ -41,7 +41,7 @@ module Cloudconfig
               puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
             end
           end
-        rescue Exception => error_msg
+        rescue CreationError => error_msg
           puts "#{updated[0]["name"]} could not be updated since: #{error_msg}"
         end
       end
@@ -51,7 +51,7 @@ module Cloudconfig
           if !created_resource.empty?
             puts "The #{@resource} named #{created_resource[0]} has been created"
           end
-        rescue Exception => error_msg
+        rescue CreationError => error_msg
           puts "#{created["name"]} could not be created since: #{error_msg}"
         end
       end
