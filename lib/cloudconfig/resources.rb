@@ -139,7 +139,7 @@ module Cloudconfig
       # 'res_union' contains the the parameters that the new, updated or recreated, resource should contain
       res_union = Hash[res[1].to_a | res[0].to_a]
       # 'res_diff' contains the parameters that differs from the existing resource, and represents what will be added/changed
-      res_diff, needs_recreation = changes_required(res)
+      res_diff, needs_recreation = required_changes(res)
       if !res_diff.empty?
         # All these resources could need recreation and are controlled, to see if all nedded requirements are met.
         if (@resource == "serviceofferings") || (@resource == "systemofferings") || (@resource == "diskofferings")
@@ -186,7 +186,7 @@ module Cloudconfig
     end
 
 
-    def changes_required(res)
+    def required_changes(res)
       # Find the parameters that differs
       res_diff = Hash[(res[0].to_a) - (res[1].to_a)]
       changes = res_diff.clone
