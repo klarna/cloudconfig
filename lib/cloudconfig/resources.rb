@@ -22,43 +22,43 @@ module Cloudconfig
 
     def update()
       @client = create_cloudstack_client()
-      resource_file, resource_cloud = define_yamlfile_and_cloudresource()
-      if (resource_file == nil) || (resource_cloud == nil)
-        puts "Resource not supported."
-      else
-        r_updated, r_created, r_deleted = check_resource(resource_file, resource_cloud)
-        if @dryrun
-          puts "The following actions would be performed with this command:"
-        end
-        for updated in r_updated
-          begin
-            updated_resource, only_updated = update_resource(updated)
-            if !updated_resource.empty?
-              if only_updated
-                puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
-              else
-                puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
-              end
+      begin
+        resource_file, resource_cloud = define_yamlfile_and_cloudresource()
+      rescue Exception => error_msg
+        raise error_msg, "Resource could not be loaded from configuration file and/or the cloud."
+      end
+      r_updated, r_created, r_deleted = check_resource(resource_file, resource_cloud)
+      if @dryrun
+        puts "The following actions would be performed with this command:"
+      end
+      for updated in r_updated
+        begin
+          updated_resource, only_updated = update_resource(updated)
+          if !updated_resource.empty?
+            if only_updated
+              puts "Some values have been changed in the #{@resource} named #{updated_resource[0]}.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
+            else
+              puts "The #{@resource} named #{updated_resource[0]} has been recreated.\nOld values were:\n#{JSON.pretty_generate(updated_resource[1])}\nNew values are:\n#{JSON.pretty_generate(updated_resource[2])}"
             end
-          rescue Exception => error_msg
-            puts "#{updated[0]["name"]} could not be updated since: #{error_msg}"
           end
+        rescue CreationError => error_msg
+          puts "#{updated[0]["name"]} could not be updated since: #{error_msg}"
         end
-        for created in r_created
-          begin
-            created_resource = create_resource(created)
-            if !created_resource.empty?
-              puts "The #{@resource} named #{created_resource[0]} has been created"
-            end
-          rescue Exception => error_msg
-            puts "#{created["name"]} could not be created since: #{error_msg}"
+      end
+      for created in r_created
+        begin
+          created_resource = create_resource(created)
+          if !created_resource.empty?
+            puts "The #{@resource} named #{created_resource[0]} has been created"
           end
+        rescue CreationError => error_msg
+          puts "#{created["name"]} could not be created since: #{error_msg}"
         end
-        for deleted in r_deleted
-          deleted_resource = delete_resource(deleted)
-          if !deleted_resource.empty?
-            puts "The #{@resource} named #{deleted_resource[0]} has been deleted"
-          end
+      end
+      for deleted in r_deleted
+        deleted_resource = delete_resource(deleted)
+        if !deleted_resource.empty?
+          puts "The #{@resource} named #{deleted_resource[0]} has been deleted"
         end
       end
     end
@@ -72,7 +72,6 @@ module Cloudconfig
 
     # Save the current list of resources in resource_cloud, and the ones in the yaml file in resource_file
     def define_yamlfile_and_cloudresource()
-      resource_exists = true
       if @resource == "serviceofferings"
         resource_title = "ServiceOfferings"
         resource_cloud = @client.list_service_offerings()["serviceoffering"]
@@ -88,15 +87,9 @@ module Cloudconfig
       elsif @resource == "systemofferings"
         resource_title = "SystemOfferings"
         resource_cloud = @client.list_service_offerings({"issystem" => true})["serviceoffering"]
-      else
-        resource_exists = false
       end
-      if resource_exists
-        resource_file = YAML.load_file("#{@config_file["resource_directory"]}/#{@resource}.yaml")["#{resource_title}"]
-        return resource_file, resource_cloud
-      else
-        return nil, nil
-      end
+      resource_file = YAML.load_file("#{@config_file["resource_directory"]}/#{@resource}.yaml")["#{resource_title}"]
+      return resource_file, resource_cloud
     end
 
 
@@ -143,34 +136,18 @@ module Cloudconfig
     def update_resource(res)
       updated = true
       updated_resource = Array.new
-      res_diff = Hash[(res[0].to_a) - (res[1].to_a)]
+      # 'res_union' contains the the parameters that the new, updated or recreated, resource should contain
       res_union = Hash[res[1].to_a | res[0].to_a]
-      # If the parameters that differs only contain the following keys, then the resource only needs an update. Otherwise, a recreation is required.
-      changes = res_diff.clone
-      only_update_parameters = ["displaytext", "sortkey", "displayoffering"]
-      only_update_parameters.each { |searched_param| changes.delete_if { |actual_param| actual_param == searched_param } }
-      for param, value in changes
-        if (!res[1].has_key?(param) || (res[1][param] == "")) && (value == "")
-          changes.delete(param)
-          res_diff.delete(param)
-        end
-      end
+      # 'res_diff' contains the parameters that differs from the existing resource, and represents what will be added/changed
+      res_diff, needs_recreation = required_changes(res)
       if !res_diff.empty?
         # All these resources could need recreation and are controlled, to see if all nedded requirements are met.
         if (@resource == "serviceofferings") || (@resource == "systemofferings") || (@resource == "diskofferings")
-          if !changes.empty?
-            # Recreation is needed
+          if needs_recreation
             updated = false
-            actual_dryrun = @dryrun
-            @dryrun = true
-            created = create_resource(res_union)
-            if !created.empty?
-              @dryrun = actual_dryrun
-              deleted = delete_resource(res_union)
-              created = create_resource(res_union)
+            if has_recreated_resource?(res_union)
               updated_resource.push(res[0]["name"], res[1], res_diff)
             end
-            @dryrun = actual_dryrun
           else
             # Only an update is nedded
             if (@resource == "serviceofferings") || (@resource == "systemofferings")
@@ -209,19 +186,59 @@ module Cloudconfig
     end
 
 
+    def required_changes(res)
+      # Find the parameters that differs
+      res_diff = Hash[(res[0].to_a) - (res[1].to_a)]
+      changes = res_diff.clone
+      # If the parameters that differs only contain the following keys, then the resource only needs an update. Otherwise, a recreation is required.
+      only_update_parameters = ["displaytext", "sortkey", "displayoffering"]
+      only_update_parameters.each { |searched_param| changes.delete_if { |actual_param| actual_param == searched_param } }
+      # Remove all changes that aren't actually changes, to avoid unnecessary updates
+      for param, value in changes
+        if (!res[1].has_key?(param) || (res[1][param] == "")) && (value == "")
+          changes.delete(param)
+          res_diff.delete(param)
+        end
+      end
+      needs_recreation = false
+      if !changes.empty?
+        needs_recreation = true
+      end
+      return res_diff, needs_recreation 
+    end
+
+
+    def has_recreated_resource?(res)
+      # The resource should only be deleted if it can be recreated, so a dryrun check needs to be made to assure this
+      actual_dryrun = @dryrun
+      @dryrun = true
+      created = create_resource(res)
+      if !created.empty?
+        # No errors occured, and an actual run can be made
+        @dryrun = actual_dryrun
+        deleted = delete_resource(res)
+        created = create_resource(res)
+        return true
+      end
+      @dryrun = actual_dryrun
+      return false
+    end
+
+
     def create_resource(res)
       check_for_creation_errors(res)
       created = Array.new
       created.push(res["name"])
       if (@resource == "serviceofferings") || (@resource == "systemofferings")
         if @resource == "systemofferings"
+          # All system offerings needs to include this
           res["issystem"] = true
         end
         if !@dryrun
           @client.create_service_offering(res)
         end
       elsif (@resource == "diskofferings")
-        # Parameter iscustomized has different name (customized) when creating resource, and parameter disksize create error if iscustomized is true.
+        # Parameter 'iscustomized' has different name ('customized') when creating resource, and parameter disksize create error if iscustomized is true
         if res.has_key?("iscustomized") && res["iscustomized"] == true
           res.delete("disksize")
         end
