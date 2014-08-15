@@ -126,7 +126,7 @@ systemofferings.yaml:
 Currently only unit testing:
 
     bundle install
-    bundle exec ruby test/test.rb
+    rake
 
 ## Contributing
 
