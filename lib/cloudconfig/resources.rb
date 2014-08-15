@@ -189,6 +189,7 @@ module Cloudconfig
     def required_changes(res)
       # Find the parameters that differs
       res_diff = Hash[(res[0].to_a) - (res[1].to_a)]
+      res_diff.delete_if { |param| param == "id" }
       changes = res_diff.clone
       # If the parameters that differs only contain the following keys, then the resource only needs an update. Otherwise, a recreation is required.
       only_update_parameters = ["displaytext", "sortkey", "displayoffering"]
