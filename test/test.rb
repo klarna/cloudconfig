@@ -26,97 +26,66 @@ class TestResources < Test::Unit::TestCase
   def test_update_serviceofferings_delete_is_false
     # Test array and hash in test_helper.rb, with delete option set to false in setup
     upd, cre, del = @res[0].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, cre.length)
-    assert_equal("Resource-04", "#{cre[0]["name"]}")
     assert_equal(0, del.length)
     resource = @res[0]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   # Same test, with delete set to true
   def test_update_serviceofferings_delete_is_true
-    @res[0].delete = true
-    upd, cre, del = @res[0].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, cre.length)
-    assert_equal("Resource-04", "#{cre[0]["name"]}")
-    assert_equal(1, del.length)
-    assert_equal("Resource-03", "#{del[0]["name"]}")
     resource = @res[0]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   def test_update_systemofferings_delete_is_false
-    upd, cre, del = @res[4].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, cre.length)
-    assert_equal("Resource-04", "#{cre[0]["name"]}")
-    assert_equal(0, del.length)
     resource = @res[4]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   def test_update_systemofferings_delete_is_true
-    @res[4].delete = true
-    upd, cre, del = @res[4].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, cre.length)
-    assert_equal("Resource-04", "#{cre[0]["name"]}")
-    assert_equal(1, del.length)
-    assert_equal("Resource-03", "#{del[0]["name"]}")
     resource = @res[4]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   def test_update_hosts_delete_is_false
-    upd, cre, del = @res[1].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(0, cre.length)
-    assert_equal(0, del.length)
     resource = @res[1]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   def test_update_hosts_delete_is_true
-    @res[1].delete = true
-    upd, cre, del = @res[1].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(0, cre.length)
-    assert_equal(0, del.length)
     resource = @res[1]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   def test_update_storages_delete_is_false
-    upd, cre, del = @res[2].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(0, cre.length)
-    assert_equal(0, del.length)
     resource = @res[2]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   def test_update_storages_delete_is_true
-    @res[2].delete = true
-    upd, cre, del = @res[2].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(0, cre.length)
-    assert_equal(0, del.length)
     resource = @res[2]
     control_updates(upd, resource)
+    control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def test_update_diskofferings_delete_is_false
-    upd, cre, del = @res[3].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, cre.length)
-    assert_equal("Resource-04", "#{cre[0]["name"]}") 
-    assert_equal(0, del.length)
     resource = @res[3]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   def test_update_diskofferings_delete_is_true
-    @res[3].delete = true
-    upd, cre, del = @res[3].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, cre.length)
-    assert_equal("Resource-04", "#{cre[0]["name"]}")
-    assert_equal(1, del.length)
-    assert_equal("Resource-03", "#{del[0]["name"]}")
     resource = @res[3]
     control_updates(upd, resource)
+    control_creates(cre, resource)
   end
 
   def control_updates(updated_resources, resource)
@@ -141,6 +110,35 @@ class TestResources < Test::Unit::TestCase
       else
         assert(only_updated, "#{resource} should only be updated")
       end
+    end
+  end
+
+  def control_creates(created_resources, resource)
+    if (resource == @res[0]) || (resource == @res[3]) || (resource == @res[4])
+      assert_equal(5, created_resources.length, "Five resources should be checked for creation")
+      created_resources.each { |r| assert(["Resource-04", "Resource-05", "Resource-06", "Resource-07", "Resource-08"].include?(r["name"])) }
+      should_be_created = Array.new
+      # if resource is serviceofferings, systemofferings or diskofferings
+      should_be_created.push("Resource-04")
+      # if resource is serviceofferings
+      if resource == @res[0]
+        should_be_created.push("Resource-08")
+      # if resource is diskofferings
+      elsif resource == @res[3]
+        should_be_created.push("Resource-06")
+      end
+      for created in created_resources
+        if should_be_created.include?(created["name"])
+          r = resource.create_resource(created)
+          assert_equal(1, r.length, "#{r[0]} should be created without any problems")
+        else
+          assert_raise Cloudconfig::CreationError do
+            r = resource.create_resource(created)
+          end
+        end
+      end
+    else
+      assert(created_resources.empty?, "No #{resource} should be created, since the resource is not creatable")
     end
   end
 
