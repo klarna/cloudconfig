@@ -25,52 +25,69 @@ class TestResources < Test::Unit::TestCase
 
   def test_update_serviceofferings_delete_is_false
     # Test array and hash in test_helper.rb, with delete option set to false in setup
-    upd, cre, del = @res[0].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(0, del.length)
     resource = @res[0]
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   # Same test, with delete set to true
   def test_update_serviceofferings_delete_is_true
     resource = @res[0]
+    resource.delete = true
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def test_update_systemofferings_delete_is_false
     resource = @res[4]
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def test_update_systemofferings_delete_is_true
     resource = @res[4]
+    resource.delete = true
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def test_update_hosts_delete_is_false
     resource = @res[1]
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def test_update_hosts_delete_is_true
     resource = @res[1]
+    resource.delete = true
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def test_update_storages_delete_is_false
     resource = @res[2]
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def test_update_storages_delete_is_true
     resource = @res[2]
+    resource.delete = true
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
     control_deletes(del, resource)
@@ -78,14 +95,19 @@ class TestResources < Test::Unit::TestCase
 
   def test_update_diskofferings_delete_is_false
     resource = @res[3]
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def test_update_diskofferings_delete_is_true
     resource = @res[3]
+    resource.delete = true
+    upd, cre, del = resource.check_resource(@r_test_file, @r_test_cloud)
     control_updates(upd, resource)
     control_creates(cre, resource)
+    control_deletes(del, resource)
   end
 
   def control_updates(updated_resources, resource)
@@ -142,6 +164,13 @@ class TestResources < Test::Unit::TestCase
     end
   end
 
+  def control_deletes(deleted_resources, resource)
+    if resource.delete && ((resource == @res[0]) || (resource == @res[3]) || (resource == @res[4]))
+      assert_equal(1, deleted_resources.length, "One #{resource} should be deleted, since the resource is deletable and 'delete' is #{resource.delete}")
+      assert_equal("Resource-03", "#{deleted_resources[0]["name"]}")
+    else
+      assert(deleted_resources.empty?, "No #{resource} should be deleted, since the resource is not deletable")
+    end
   end
 
 end
