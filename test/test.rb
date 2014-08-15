@@ -26,8 +26,8 @@ class TestResources < Test::Unit::TestCase
   def test_update_serviceofferings_delete_is_false
     # Test array and hash in test_helper.rb, with delete option set to false in setup
     upd, cre, del = @res[0].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(1, cre.length)
     assert_equal("Resource-04", "#{cre[0]["name"]}")
     assert_equal(0, del.length)
@@ -37,8 +37,8 @@ class TestResources < Test::Unit::TestCase
   def test_update_serviceofferings_delete_is_true
     @res[0].delete = true
     upd, cre, del = @res[0].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(1, cre.length)
     assert_equal("Resource-04", "#{cre[0]["name"]}")
     assert_equal(1, del.length)
@@ -47,8 +47,8 @@ class TestResources < Test::Unit::TestCase
 
   def test_update_systemofferings_delete_is_false
     upd, cre, del = @res[4].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(1, cre.length)
     assert_equal("Resource-04", "#{cre[0]["name"]}")
     assert_equal(0, del.length)
@@ -57,8 +57,8 @@ class TestResources < Test::Unit::TestCase
   def test_update_systemofferings_delete_is_true
     @res[4].delete = true
     upd, cre, del = @res[4].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(1, cre.length)
     assert_equal("Resource-04", "#{cre[0]["name"]}")
     assert_equal(1, del.length)
@@ -67,8 +67,8 @@ class TestResources < Test::Unit::TestCase
 
   def test_update_hosts_delete_is_false
     upd, cre, del = @res[1].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(0, cre.length)
     assert_equal(0, del.length)
   end
@@ -76,16 +76,16 @@ class TestResources < Test::Unit::TestCase
   def test_update_hosts_delete_is_true
     @res[1].delete = true
     upd, cre, del = @res[1].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(0, cre.length)
     assert_equal(0, del.length)
   end
 
   def test_update_storages_delete_is_false
     upd, cre, del = @res[2].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(0, cre.length)
     assert_equal(0, del.length)
   end
@@ -93,16 +93,16 @@ class TestResources < Test::Unit::TestCase
   def test_update_storages_delete_is_true
     @res[2].delete = true
     upd, cre, del = @res[2].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(0, cre.length)
     assert_equal(0, del.length)
   end
 
   def test_update_diskofferings_delete_is_false
     upd, cre, del = @res[3].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(1, cre.length)
     assert_equal("Resource-04", "#{cre[0]["name"]}") 
     assert_equal(0, del.length)
@@ -111,8 +111,8 @@ class TestResources < Test::Unit::TestCase
   def test_update_diskofferings_delete_is_true
     @res[3].delete = true
     upd, cre, del = @res[3].check_resource(@r_test_file, @r_test_cloud)
-    assert_equal(1, upd.length)
-    assert_equal("Resource-02", "#{upd[0][0]["name"]}")
+    assert_equal(2, upd.length)
+    upd[0].each { |r| assert_equal(("Resource-01"||"Resource-02"), r["name"]) }
     assert_equal(1, cre.length)
     assert_equal("Resource-04", "#{cre[0]["name"]}")
     assert_equal(1, del.length)
